@@ -8,10 +8,10 @@ spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
 spring.jpa.properties.hibernate.jdbc.time_zone=UTC
 #spring.mvc.servlet.path=/api
 
-spring.mail.host=smtp.gmail.com
-spring.mail.port=465
-spring.mail.username=bryan.adamson@fourfoursoftware.com
-spring.mail.password="nyce dwfz jdfx twsr"
+spring.mail.host=
+spring.mail.port=
+spring.mail.username=
+spring.mail.password=
 #spring.mail.password=re_SpHdNDbN_BHcuJMhpkYFtD8WDxptCcFzy
 spring.mail.properties.mail.smtp.auth=true
 spring.mail.properties.mail.smtp.starttls.enable=true

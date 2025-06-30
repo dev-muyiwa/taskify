@@ -3,6 +3,10 @@ package com.devmuyiwa.taskify.workspace.domain.external;
 import com.devmuyiwa.taskify.user.domain.User;
 import com.devmuyiwa.taskify.workspace.domain.internal.WorkspaceMemberRole;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -11,6 +15,10 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "workspace_members", uniqueConstraints = {@UniqueConstraint(columnNames = {"workspace_id", "user_id"})})
+@NoArgsConstructor
+@AllArgsConstructor
+@Data
+@Builder
 public class WorkspaceMember {
 
     @Id

@@ -2,6 +2,10 @@ package com.devmuyiwa.taskify.workspace.domain.internal;
 
 import com.devmuyiwa.taskify.workspace.domain.external.WorkspaceMember;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -9,6 +13,10 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "workspace_member_settings")
+@NoArgsConstructor
+@AllArgsConstructor
+@Data
+@Builder
 public class WorkspaceMemberSetting {
 
     @Id

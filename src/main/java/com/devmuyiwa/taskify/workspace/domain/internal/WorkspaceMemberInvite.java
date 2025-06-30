@@ -4,6 +4,10 @@ import com.devmuyiwa.taskify.user.domain.User;
 import com.devmuyiwa.taskify.workspace.domain.external.Workspace;
 import com.devmuyiwa.taskify.workspace.domain.external.WorkspaceMember;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -12,6 +16,10 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "workspace_member_invites", uniqueConstraints = @UniqueConstraint(columnNames = {"workspace_id", "email"}))
+@NoArgsConstructor
+@AllArgsConstructor
+@Data
+@Builder
 public class WorkspaceMemberInvite {
 
     @Id @GeneratedValue
