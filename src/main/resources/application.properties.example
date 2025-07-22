@@ -1,26 +1,66 @@
 spring.application.name=taskify
+
+# Database Configuration
 spring.datasource.url=jdbc:postgresql://localhost:5432/taskify
 spring.datasource.username=postgres
 spring.datasource.password=password
+
+# Connection Pooling (HikariCP)
+spring.datasource.hikari.maximum-pool-size=20
+spring.datasource.hikari.minimum-idle=5
+spring.datasource.hikari.connection-timeout=30000
+spring.datasource.hikari.idle-timeout=600000
+spring.datasource.hikari.max-lifetime=1800000
+spring.datasource.hikari.leak-detection-threshold=60000
+
+# JPA/Hibernate Configuration
 spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
+spring.jpa.show-sql=false
 spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
 spring.jpa.properties.hibernate.jdbc.time_zone=UTC
-#spring.mvc.servlet.path=/api
+spring.jpa.properties.hibernate.jdbc.batch_size=20
+spring.jpa.properties.hibernate.order_inserts=true
+spring.jpa.properties.hibernate.order_updates=true
+spring.jpa.properties.hibernate.jdbc.batch_versioned_data=true
+spring.jpa.properties.hibernate.cache.use_second_level_cache=true
+spring.jpa.properties.hibernate.cache.region.factory_class=org.hibernate.cache.jcache.JCacheRegionFactory
 
+# Redis Configuration
+spring.cache.type=redis
+spring.data.redis.host=localhost
+spring.data.redis.port=6379
+spring.data.redis.timeout=60000
+spring.data.redis.password=your_redis_password
+spring.data.redis.lettuce.pool.max-active=20
+spring.data.redis.lettuce.pool.max-idle=10
+spring.data.redis.lettuce.pool.min-idle=5
+
+# Async Configuration
+spring.task.execution.pool.core-size=10
+spring.task.execution.pool.max-size=50
+spring.task.execution.pool.queue-capacity=100
+spring.task.execution.thread-name-prefix=taskify-async-
+
+# Mail Configuration
 spring.mail.host=
 spring.mail.port=
 spring.mail.username=
 spring.mail.password=
-#spring.mail.password=re_SpHdNDbN_BHcuJMhpkYFtD8WDxptCcFzy
 spring.mail.properties.mail.smtp.auth=true
 spring.mail.properties.mail.smtp.starttls.enable=true
 spring.mail.properties.mail.smtp.ssl.enable=true
 spring.mail.properties.mail.smtp.connectiontimeout=5000
-spring.mail.properties.mail.smtp.timeout=5000dr
+spring.mail.properties.mail.smtp.timeout=5000
 spring.mail.properties.mail.smtp.writetimeout=5000
 
+# JWT Configuration
 jwt.secret=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
 jwt.expiration=86400000
 
+# Application Configuration
 resend.from="Taskify <welcome@taskify.com>"
+
+# Logging Configuration
+logging.level.com.devmuyiwa.taskify=INFO
+logging.level.org.hibernate.SQL=WARN
+logging.level.org.hibernate.type.descriptor.sql.BasicBinder=WARN

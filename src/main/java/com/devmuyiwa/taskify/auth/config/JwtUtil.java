@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.time.Duration;
 import java.util.Date;
 import java.util.UUID;
 
@@ -30,6 +31,17 @@ public class JwtUtil {
     public String generateToken(UUID userId) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
+        return Jwts.builder()
+                .setSubject(userId.toString())
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(signingKey, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public String generateResetToken(UUID userId, Duration duration) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + duration.toMillis());
         return Jwts.builder()
                 .setSubject(userId.toString())
                 .setIssuedAt(now)

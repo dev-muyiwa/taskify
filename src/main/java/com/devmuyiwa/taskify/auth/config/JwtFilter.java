@@ -31,34 +31,39 @@ public class JwtFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        final String header = request.getHeader("Authorization");
+        try {
+            final String header = request.getHeader("Authorization");
 
-        if (header == null || !header.startsWith("Bearer ")) {
+            if (header == null || !header.startsWith("Bearer ")) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            String token = header.substring(7);
+            if (!jwtUtil.isValid(token)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            UUID userId = jwtUtil.extractUserId(token);
+            if (!userRepo.existsById(userId)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            var principal = new AuthUser(userId);
+            var auth = new UsernamePasswordAuthenticationToken(
+                    principal,
+                    null,
+                    null
+            );
+
+            SecurityContextHolder.getContext().setAuthentication(auth);
+
             filterChain.doFilter(request, response);
-            return;
-        }
-
-        String token = header.substring(7);
-        if (!jwtUtil.isValid(token)) {
+        } catch (Exception e) {
+            // Log the error but don't fail the request
             filterChain.doFilter(request, response);
-            return;
         }
-
-        UUID userId = jwtUtil.extractUserId(token);
-        if (!userRepo.existsById(userId)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        var principal = new AuthUser(userId);
-        var auth = new UsernamePasswordAuthenticationToken(
-                principal,
-                null,
-                null
-        );
-
-        SecurityContextHolder.getContext().setAuthentication(auth);
-
-        filterChain.doFilter(request, response);
     }
 }

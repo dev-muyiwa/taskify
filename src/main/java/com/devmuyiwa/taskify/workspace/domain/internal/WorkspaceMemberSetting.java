@@ -23,18 +23,23 @@ public class WorkspaceMemberSetting {
     @GeneratedValue
     private Long id;
 
+    @Builder.Default
     @Column(name = "should_send_task_assigned_email", nullable = false)
     private boolean shouldSendTaskAssignedEmail = true;
 
+    @Builder.Default
     @Column(name = "should_send_task_completed_email", nullable = false)
     private boolean shouldSendTaskCompletedEmail = true;
 
+    @Builder.Default
     @Column(name = "should_send_task_due_email", nullable = false)
     private boolean shouldSendProjectUpdatedEmail = false;
 
+    @Builder.Default
     @Column(name = "should_send_team_invites_email", nullable = false)
     private boolean shouldSendTeamInvitesEmail = false;
 
+    @Builder.Default
     @Column(name = "should_send_task_due_pn", nullable = false)
     private boolean shouldSendTaskDuePn = true;
 
