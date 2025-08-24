@@ -49,7 +49,6 @@ public class WorkspaceMember {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
-
     //    Relationships
     @ManyToOne
     @JoinColumn(name = "workspace_id", nullable = false)

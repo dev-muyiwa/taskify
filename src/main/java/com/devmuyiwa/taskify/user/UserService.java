@@ -3,8 +3,6 @@ package com.devmuyiwa.taskify.user;
 import com.devmuyiwa.taskify.auth.dto.req.RegisterRequest;
 import com.devmuyiwa.taskify.user.domain.User;
 import io.micrometer.core.annotation.Timed;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,7 +21,7 @@ public class UserService {
     @Transactional
     @Timed(value = "user.create", description = "Time taken to create a new user")
     public User createUser(RegisterRequest request) {
-        if (userRepo.existsByEmailIgnoreCase(request.email())) {
+        if (userRepo.existsByEmail(request.email())) {
             throw new IllegalArgumentException("An account with this email already exists.");
         }
 
