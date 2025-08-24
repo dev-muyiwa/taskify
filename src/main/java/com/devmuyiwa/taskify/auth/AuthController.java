@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController()
 @RequestMapping("/auth")
 @RequiredArgsConstructor
-@Tag(name = "Authentication", description = "Endpoints for user authentication and management")
+@Tag(name = "Authentication", description = "Endpoints for user authentication")
 public class AuthController {
 
     private final AuthService authService;
@@ -33,7 +33,7 @@ public class AuthController {
             HttpServletRequest httpRequest) {
         String requestId = (String) httpRequest.getAttribute(RequestIdFilter.REQUEST_ID_HEADER);
 
-        AuthResponse response = authService.register(request);
+        AuthResponse response = authService.register(request, requestId);
         return ResponseEntity.ok(
                 ApiSuccessResponse
                         .<AuthResponse>builder()

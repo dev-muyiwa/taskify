@@ -42,7 +42,7 @@ public class AuthService {
 
     @Transactional
     @Timed(value = "auth.register", description = "Time taken to register a new user")
-    public AuthResponse register(RegisterRequest req) {
+    public AuthResponse register(RegisterRequest req, String requestId) {
         if (!req.termsAccepted()) {
             throw new IllegalArgumentException("You must accept the terms and conditions to register.");
         }
@@ -51,22 +51,27 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(user.getId());
 
-        publishUserRegisteredEventAsync(req, user);
+//        Let the user verify their email before sending welcome emails or creating workspaces
+//        publishUserRegisteredEventAsync(req, user, requestId);
 
         return new AuthResponse(token);
     }
 
     @Async("taskExecutor")
-    protected void publishUserRegisteredEventAsync(RegisterRequest req, User user) {
+    protected void publishUserRegisteredEventAsync(RegisterRequest req, User user, String requestId) {
         try {
-            eventPublisher.publishEvent(new UserRegisteredEvent(
-                    req.firstName().trim(), req.lastName().trim(), user
-            ));
-            log.info("UserRegisteredEvent published successfully for user: {}", user.getEmail());
+            eventPublisher.publishEvent(
+                    new UserRegisteredEvent(
+                            req.firstName().trim(),
+                            req.lastName().trim(),
+                            user,
+                            requestId
+                    )
+            );
+            log.info("UserRegisteredEvent published successfully for user: {}", user.getId());
         } catch (Exception e) {
             meterRegistry.counter("auth.register.userRegisteredEventError").increment();
-            log.error("Failed to publish UserRegisteredEvent for user: {}", user.getEmail(), e);
-            // Don't throw exception to avoid affecting the main registration flow
+            log.error("Failed to publish UserRegisteredEvent for user: {}", user.getId(), e);
         }
     }
 
@@ -80,7 +85,6 @@ public class AuthService {
 
             log.debug("Authentication attempt successful for user: {}", auth);
 
-            // After successful authentication, get the user from database
             User user = userService.findByEmail(email)
                     .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
@@ -99,7 +103,7 @@ public class AuthService {
         }
     }
 
-    //    @Timed(value = "auth.forgotPassword", description = "Time taken to handle forgot password request")
+    @Timed(value = "auth.forgotPassword", description = "Time taken to handle forgot password request")
     public void forgotPassword(ForgotPassword req, String requestId) {
 //        virtualThreadExecutor.execute(() -> {
             Optional<User> user = userService.findByEmail(req.email());
@@ -155,10 +159,8 @@ public class AuthService {
             throw new IllegalStateException("Reset token has not been verified.");
         }
 
-        // Update the user's password
         userService.updatePassword(user.get(), req.newPassword());
 
-        // Remove the reset token from Redis
         redisTemplate.delete(key);
 
         eventPublisher.publishEvent(
@@ -168,6 +170,15 @@ public class AuthService {
                 )
         );
     }
+
+//    public void sendEmailVerification(ResendEmailVerification req, String requestId) {
+//        Optional<User> userOpt = userService.findByEmail(req.email());
+//        if (userOpt.isEmpty()) {
+//            throw new IllegalArgumentException("No account found with that email.");
+//        }
+//
+//        User user = userOpt.get();
+//    }
 
     private String buildResetKey(UUID userId) {
         return "password-reset:" + userId.toString();
