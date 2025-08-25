@@ -32,6 +32,17 @@ public class JwtService {
             throw new JwtAuthenticationException("Invalid JWT token format", JwtAuthenticationException.JwtErrorType.INVALID_FORMAT, e);
         }
     }
+
+    public UUID extractUserId(String token) {
+        try {
+            return jwtUtil.extractUserId(token);
+        } catch (JwtAuthenticationException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error extracting userId from JWT token: {}", e.getMessage());
+            throw new JwtAuthenticationException("Invalid JWT token format", JwtAuthenticationException.JwtErrorType.INVALID_FORMAT, e);
+        }
+    }
     
     public boolean isTokenValid(String token, UserDetails userDetails) {
         try {

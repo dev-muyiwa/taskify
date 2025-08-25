@@ -15,8 +15,6 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
                         AuthenticationException authException) throws IOException, ServletException {
-        // Let Spring Security handle the exception through GlobalExceptionHandler
-        // This ensures consistent error handling across the application
         throw authException;
     }
 }

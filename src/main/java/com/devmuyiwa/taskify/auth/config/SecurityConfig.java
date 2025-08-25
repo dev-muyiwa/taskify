@@ -52,7 +52,6 @@ public class SecurityConfig {
     @Bean
     public AccessDeniedHandler accessDeniedHandler() {
         return (request, response, accessDeniedException) -> {
-            // Let Spring Security handle access denied through GlobalExceptionHandler
             throw accessDeniedException;
         };
     }

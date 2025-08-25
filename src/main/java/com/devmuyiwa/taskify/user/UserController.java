@@ -1,6 +1,6 @@
 package com.devmuyiwa.taskify.user;
 
-import com.devmuyiwa.taskify.auth.util.CurrentUserId;
+import com.devmuyiwa.taskify.auth.util.AuthUser;
 import com.devmuyiwa.taskify.common.dto.ApiSuccessResponse;
 import com.devmuyiwa.taskify.common.filter.RequestIdFilter;
 import com.devmuyiwa.taskify.user.dto.UserResponse;
@@ -12,11 +12,10 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.UUID;
 
 @RestController()
 @RequestMapping("/users")
@@ -38,12 +37,12 @@ public class UserController {
             @ApiResponse(responseCode = "404", description = "User not found")
     })
     public ApiSuccessResponse<UserResponse> getCurrentUser(
-            @Parameter(description = "Current user ID extracted from JWT token")
-            @CurrentUserId UUID userId,
+            @Parameter(description = "Current user extracted from JWT token")
+            @AuthenticationPrincipal AuthUser authUser,
             HttpServletRequest httpRequest) {
-        
+
         String requestId = (String) httpRequest.getAttribute(RequestIdFilter.REQUEST_ID_HEADER);
-        UserResponse userResponse = userService.getCurrentUser(userId);
+        UserResponse userResponse = userService.getCurrentUser(authUser.id());
         
         return ApiSuccessResponse.<UserResponse>builder()
                 .message("User information retrieved successfully")
