@@ -11,9 +11,9 @@ import java.util.UUID;
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
 
-    @Query("SELECT COUNT(u) > 0 FROM User u WHERE LOWER(u.email) = LOWER(?1) AND u.deletedAt IS NULL")
+    @Query("SELECT COUNT(u) > 0 FROM User u WHERE u.email = ?1 AND u.deletedAt IS NULL")
     Boolean existsByEmail(String email);
 
-    @Query("SELECT u FROM User u WHERE LOWER(u.email) = LOWER(?1) AND u.deletedAt IS NULL")
+    @Query("SELECT u FROM User u WHERE u.email = ?1 AND u.deletedAt IS NULL")
     Optional<User> findByEmail(String email);
 }

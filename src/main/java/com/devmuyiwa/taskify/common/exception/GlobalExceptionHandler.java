@@ -2,15 +2,17 @@ package com.devmuyiwa.taskify.common.exception;
 
 import com.devmuyiwa.taskify.common.dto.ApiErrorResponse;
 import com.devmuyiwa.taskify.common.filter.RequestIdFilter;
+import io.jsonwebtoken.MalformedJwtException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import javax.naming.AuthenticationException;
 import java.nio.file.AccessDeniedException;
 import java.util.Map;
 import java.util.Optional;
@@ -72,10 +74,20 @@ public class GlobalExceptionHandler {
                 .build());
     }
 
-    @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<ApiErrorResponse> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
+    @ExceptionHandler({AuthenticationException.class, BadCredentialsException.class, MalformedJwtException.class})
+    public ResponseEntity<ApiErrorResponse> handleAuthentication(Exception ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiErrorResponse.builder()
-                .message("You are not authenticated. Please log in.")
+                .message("Authorization failed. Please check your credentials and try again.")
+                .requestId(getRequestId(request))
+                .path(request.getRequestURI())
+                .error(Map.of("error", ex.getMessage()))
+                .build());
+    }
+
+    @ExceptionHandler(UnsupportedOperationException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnsupportedOperation(UnsupportedOperationException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiErrorResponse.builder()
+                .message("Authentication required")
                 .requestId(getRequestId(request))
                 .path(request.getRequestURI())
                 .error(Map.of("error", ex.getMessage()))

@@ -38,8 +38,8 @@ public class WorkspaceMember {
     @Column(name = "role", nullable = false)
     private WorkspaceMemberRole role;
 
-    @Column(name = "verified_at")
-    private Instant verifiedAt;
+    @Column(name = "bio")
+    private String bio;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

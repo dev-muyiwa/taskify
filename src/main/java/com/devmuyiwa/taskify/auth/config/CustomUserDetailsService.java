@@ -1,6 +1,7 @@
 package com.devmuyiwa.taskify.auth.config;
 
 import com.devmuyiwa.taskify.auth.util.AuthUser;
+import com.devmuyiwa.taskify.user.UserRepository;
 import com.devmuyiwa.taskify.user.UserService;
 import com.devmuyiwa.taskify.user.domain.User;
 import lombok.RequiredArgsConstructor;
@@ -15,19 +16,17 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserService userService;
+    private final UserRepository userRepo;
+
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        System.out.println("Loading user by username: " + email);
-        return userService.findByEmail(email)
+        return userRepo.findByEmail(email.toLowerCase().trim())
                 .map(this::createUserDetails)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
     }
 
     private UserDetails createUserDetails(User user) {
-        System.out.println("Creating UserDetails for user: " + user.getEmail());
-        System.out.println("Stored password hash: " + user.getPassword());
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail())
                 .password(user.getPassword())
@@ -36,7 +35,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     public AuthUser loadUserById(UUID userId) throws UsernameNotFoundException {
-        return userService.findById(userId)
+        return userRepo.findById(userId)
                 .map(user -> new AuthUser(user.getId()))
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + userId));
     }

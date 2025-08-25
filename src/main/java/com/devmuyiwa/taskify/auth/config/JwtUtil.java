@@ -50,6 +50,18 @@ public class JwtUtil {
                 .compact();
     }
 
+    public String generateEmailVerificationToken(UUID userId, int expirationMinutes) {
+        Date now = new Date();
+        // Convert minutes to milliseconds
+        Date expiryDate = new Date(now.getTime() + (expirationMinutes * 60 * 1000));
+        return Jwts.builder()
+                .setSubject(userId.toString())
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(signingKey, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
     public UUID extractUserId(String token) {
         String subject = Jwts.parserBuilder()
                 .setSigningKey(signingKey)

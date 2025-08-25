@@ -1,22 +1,21 @@
 package com.devmuyiwa.taskify.common.service;
 
 import com.devmuyiwa.taskify.common.events.PasswordResetTokenGeneratedEvent;
+import com.devmuyiwa.taskify.common.events.UserRegisteredEvent;
 import com.devmuyiwa.taskify.common.events.WorkspaceMemberCreatedEvent;
 import jakarta.mail.MessagingException;
-import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.event.EventListener;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
-
-import java.time.Duration;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
 @Service
 @RequiredArgsConstructor
@@ -24,16 +23,18 @@ import java.time.Duration;
 public class MailService {
 
     private final JavaMailSender mailSender;
+    private final TemplateEngine templateEngine;
 
-    @Value("${resend.from}")
+    @Value("${spring.mail.username:}")
     private String fromAddress;
+
+    @Value("${app.frontend.url:http://localhost:3000}")
+    private String frontendUrl;
 
     @Async("taskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleWorkspaceMemberCreated(WorkspaceMemberCreatedEvent event) {
         try {
-            log.info("Sending welcome email to: {}", event.email());
-            
             String to = event.email();
             String subject = "Welcome to Taskify!";
             String body = String.format(
@@ -41,11 +42,9 @@ public class MailService {
                     event.firstName()
             );
 
-            sendEmailAsync(to, subject, body);
-            log.info("Welcome email sent successfully to: {}", event.email());
-            
+            sendEmailAsync(to, subject, body, false);
         } catch (Exception e) {
-            log.error("Failed to send welcome email to: {}", event.email(), e);
+            log.error("Failed to send welcome email:", e);
             // Don't rethrow to avoid affecting the main flow
         }
     }
@@ -54,8 +53,6 @@ public class MailService {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handlePasswordResetTokenGenerated(PasswordResetTokenGeneratedEvent event) {
         try {
-            log.info("Sending password reset email to: {}", event.email());
-            
             String to = event.email();
             String subject = "Password Reset Request";
             String body = String.format(
@@ -64,29 +61,59 @@ public class MailService {
                     event.expirationTime().toMinutes()
             );
 
-            sendEmailAsync(to, subject, body);
-            log.info("Password reset email sent successfully to: {}", event.email());
-            
+            sendEmailAsync(to, subject, body, false);
         } catch (Exception e) {
-            log.error("Failed to send password reset email to: {}", event.email(), e);
+            log.error("Failed to send password reset email:", e);
         }
     }
 
-    private void sendEmailAsync(String to, String subject, String body) {
+    @Async("taskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleUserRegistered(UserRegisteredEvent event) {
+        String to = event.email();
+        try {
+            String subject = "Verify Your Email - Taskify";
+
+            // Send HTML email with verification link
+            sendVerificationEmailAsync(to, subject, event.firstName(), event.verificationToken(), event.expirationMinutes());
+        } catch (Exception e) {
+            log.error("Failed to send email verification email:", e);
+        }
+    }
+
+    private void sendEmailAsync(String to, String subject, String body, boolean isHtml) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             
             helper.setFrom(fromAddress);
             helper.setTo(to);
             helper.setSubject(subject);
-            helper.setText(body);
+            helper.setText(body, isHtml);
             
             mailSender.send(message);
             
         } catch (MessagingException e) {
-            log.error("Failed to send email to: {}", to, e);
             throw new RuntimeException("Failed to send email", e);
         }
     }
+
+    private void sendVerificationEmailAsync(String to, String subject, String firstName, String verificationToken, int expirationMinutes) {
+        // Compose the full verification URL with token
+        String fullVerificationUrl = frontendUrl + "/verify-email?token=" + verificationToken;
+
+        // Use Thymeleaf template
+        Context context = new Context();
+        context.setVariable("firstName", firstName);
+        context.setVariable("verificationToken", verificationToken);
+        context.setVariable("verificationUrl", fullVerificationUrl);
+        context.setVariable("expirationMinutes", expirationMinutes);
+
+        String htmlContent = templateEngine.process("email/account_verification", context);
+
+        // Use the unified email sending function
+        sendEmailAsync(to, subject, htmlContent, true);
+    }
+
+
 }

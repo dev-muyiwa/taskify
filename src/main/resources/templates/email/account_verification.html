@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email - Taskify</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 300;
+        }
+        .content {
+            padding: 40px 30px;
+            background-color: #ffffff;
+        }
+        .greeting {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .message {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.8;
+        }
+        .verification-button {
+            display: inline-block;
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            margin: 20px 0;
+            transition: transform 0.2s ease;
+        }
+        .verification-button:hover {
+            transform: translateY(-2px);
+        }
+        .expiry-notice {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #856404;
+        }
+        .manual-link {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 14px;
+            color: #495057;
+        }
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            background-color: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+            color: #6c757d;
+            font-size: 14px;
+        }
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .divider {
+            height: 1px;
+            background-color: #e9ecef;
+            margin: 30px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">📋</div>
+            <h1>Welcome to Taskify!</h1>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">Hi <span th:text="${firstName}">User</span>,</div>
+            
+            <div class="message">
+                <p>Thank you for registering with Taskify! We're excited to have you on board.</p>
+                <p>To complete your registration and start using Taskify, please verify your email address by clicking the button below:</p>
+            </div>
+            
+            <div style="text-align: center;">
+                <a th:href="${verificationUrl}" 
+                   class="verification-button">
+                    ✅ Verify Email Address
+                </a>
+            </div>
+            
+            <div class="expiry-notice">
+                <strong>⚠️ Important:</strong> This verification link will expire in <span th:text="${expirationMinutes}">20</span> minutes for security reasons.
+            </div>
+            
+            <div class="divider"></div>
+            
+            <div class="message">
+                <p>If the button above doesn't work, you can copy and paste this link into your browser:</p>
+            </div>
+            
+            <div class="manual-link" th:text="${verificationUrl}">
+                http://localhost:3000/verify-email?token=your-token-here
+            </div>
+            
+            <div class="message">
+                <p><strong>Didn't create an account?</strong> If you didn't sign up for Taskify, please ignore this email. Your email address will not be used for any purpose.</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>&copy; 2024 Taskify. All rights reserved.</p>
+            <p>This email was sent to verify your account registration.</p>
+        </div>
+    </div>
+</body>
+</html>

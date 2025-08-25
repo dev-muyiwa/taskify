@@ -24,36 +24,11 @@ public class WorkspaceService {
     private final WorkspaceMemberRepository workspaceMemberRepo;
     private final ApplicationEventPublisher eventPublisher;
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
-    public void handleWorkspaceCreation(UserRegisteredEvent event) {
-        try {
-            log.info("Creating workspace for user: {}", event.user().getEmail());
-            
-            Workspace workspace = Workspace.builder()
-                    .name(event.firstName() + "'s Workspace")
-                    .build();
-            workspaceRepo.save(workspace);
-
-            WorkspaceMember member = WorkspaceMember.builder()
-                    .firstName(event.firstName())
-                    .lastName(event.lastName())
-                    .role(WorkspaceMemberRole.OWNER)
-                    .user(event.user())
-                    .workspace(workspace)
-                    .build();
-            workspaceMemberRepo.save(member);
-
-            log.info("Workspace created successfully for user: {}", event.user().getEmail());
-
-            // Publish workspace member created event asynchronously
-            publishWorkspaceMemberCreatedEventAsync(member, event.user().getEmail());
-            
-        } catch (Exception e) {
-            log.error("Failed to create workspace for user: {}", event.user().getEmail(), e);
-            // Don't rethrow to avoid affecting the main registration flow
-        }
-    }
+//    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+//    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+//    public void handleWorkspaceCreation(UserRegisteredEvent event) {
+//
+//    }
 
     private void publishWorkspaceMemberCreatedEventAsync(WorkspaceMember member, String email) {
         try {

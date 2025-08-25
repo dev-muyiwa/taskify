@@ -36,7 +36,7 @@ public class User {
     private String password;
 
     @Column(name = "has_accepted_terms", nullable = false)
-    private boolean hasAcceptedTerms;
+    private boolean hasAcceptedTerms = false;
 
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;

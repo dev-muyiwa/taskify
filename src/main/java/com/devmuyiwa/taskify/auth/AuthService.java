@@ -19,10 +19,12 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executor;
@@ -43,28 +45,26 @@ public class AuthService {
     @Transactional
     @Timed(value = "auth.register", description = "Time taken to register a new user")
     public AuthResponse register(RegisterRequest req, String requestId) {
-        if (!req.termsAccepted()) {
-            throw new IllegalArgumentException("You must accept the terms and conditions to register.");
-        }
-
         User user = userService.createUser(req);
 
         String token = jwtUtil.generateToken(user.getId());
 
-//        Let the user verify their email before sending welcome emails or creating workspaces
-//        publishUserRegisteredEventAsync(req, user, requestId);
+        // Send verification email
+        sendVerificationEmail(user, requestId);
 
         return new AuthResponse(token);
     }
 
     @Async("taskExecutor")
-    protected void publishUserRegisteredEventAsync(RegisterRequest req, User user, String requestId) {
+    protected void publishUserRegisteredEventAsync(User user, String verificationToken, int expirationMinutes, String requestId) {
         try {
             eventPublisher.publishEvent(
                     new UserRegisteredEvent(
-                            req.firstName().trim(),
-                            req.lastName().trim(),
-                            user,
+                            user.getFirstName(),
+                            user.getLastName(),
+                            user.getEmail(),
+                            verificationToken,
+                            expirationMinutes,
                             requestId
                     )
             );
@@ -92,7 +92,7 @@ public class AuthService {
             log.info("User logged in successfully: {}", email);
 
             return new AuthResponse(token);
-        } catch (BadCredentialsException ex) {
+        } catch (BadCredentialsException | UsernameNotFoundException ex) {
             meterRegistry.counter("auth.login.badCredentials").increment();
             log.warn("Invalid credentials for email: {}", email);
             throw new IllegalArgumentException("Invalid email or password.");
@@ -182,5 +182,74 @@ public class AuthService {
 
     private String buildResetKey(UUID userId) {
         return "password-reset:" + userId.toString();
+    }
+
+    @Timed(value = "auth.verifyEmail", description = "Time taken to verify user's email")
+    public void verifyEmail(VerifyEmailRequest req, String requestId) {
+        try {
+            // Decode the base64 token
+            String decodedToken = new String(Base64.getDecoder().decode(req.token()));
+
+            // Extract user ID from the JWT
+            UUID userId = jwtUtil.extractUserId(decodedToken);
+
+            // Verify the token is still valid
+            if (!jwtUtil.isValid(decodedToken)) {
+                throw new IllegalArgumentException("Invalid or expired verification token.");
+            }
+
+            // Find the user
+            Optional<User> userOpt = userService.findById(userId);
+            if (userOpt.isEmpty()) {
+                throw new IllegalArgumentException("Invalid verification token.");
+            }
+
+            User user = userOpt.get();
+
+            // Mark the user's email as verified
+            userService.markEmailAsVerified(user);
+            log.info("Email verified successfully for user: {}", userId);
+
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error during email verification for token: {}", req.token(), e);
+            throw new IllegalArgumentException("Invalid verification token.");
+        }
+    }
+
+    @Timed(value = "auth.resendVerification", description = "Time taken to resend verification email")
+    public void resendVerificationEmail(String requestId, UUID currentUserId) {
+        // Get user by ID from JWT token
+        Optional<User> userOpt = userService.findById(currentUserId);
+        if (userOpt.isEmpty()) {
+            throw new IllegalArgumentException("User not found.");
+        }
+
+        User user = userOpt.get();
+
+        // Check if email is already verified
+        if (user.getEmailVerifiedAt() != null) {
+            throw new IllegalArgumentException("Email is already verified.");
+        }
+
+        // Send verification email
+        sendVerificationEmail(user, requestId);
+        log.info("Verification email resent for user: {}", user.getId());
+    }
+
+    private void sendVerificationEmail(User user, String requestId) {
+        // Generate email verification token with 20 minutes expiration
+        int expirationMinutes = 20;
+        String verificationToken = jwtUtil.generateEmailVerificationToken(user.getId(), expirationMinutes);
+        String base64Token = Base64.getEncoder().encodeToString(verificationToken.getBytes());
+
+        // Publish event to send verification email
+        publishUserRegisteredEventAsync(
+                user,
+                base64Token,
+                expirationMinutes,
+                requestId
+        );
     }
 }
