@@ -1,8 +1,11 @@
 package com.devmuyiwa.taskify.common.exception;
 
+import com.devmuyiwa.taskify.auth.exception.JwtAuthenticationException;
 import com.devmuyiwa.taskify.common.dto.ApiErrorResponse;
 import com.devmuyiwa.taskify.common.filter.RequestIdFilter;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -74,10 +77,97 @@ public class GlobalExceptionHandler {
                 .build());
     }
 
-    @ExceptionHandler({AuthenticationException.class, BadCredentialsException.class, MalformedJwtException.class})
-    public ResponseEntity<ApiErrorResponse> handleAuthentication(Exception ex, HttpServletRequest request) {
+    @ExceptionHandler(ExpiredJwtException.class)
+    public ResponseEntity<ApiErrorResponse> handleExpiredJwt(ExpiredJwtException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiErrorResponse.builder()
-                .message("Authorization failed. Please check your credentials and try again.")
+                .message("Your session has expired. Please log in again.")
+                .requestId(getRequestId(request))
+                .path(request.getRequestURI())
+                .error(Map.of("error", "JWT token expired", "details", ex.getMessage()))
+                .build());
+    }
+
+    @ExceptionHandler(MalformedJwtException.class)
+    public ResponseEntity<ApiErrorResponse> handleMalformedJwt(MalformedJwtException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiErrorResponse.builder()
+                .message("Invalid authentication token format.")
+                .requestId(getRequestId(request))
+                .path(request.getRequestURI())
+                .error(Map.of("error", "Malformed JWT token", "details", ex.getMessage()))
+                .build());
+    }
+
+    @ExceptionHandler(UnsupportedJwtException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnsupportedJwt(UnsupportedJwtException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiErrorResponse.builder()
+                .message("Unsupported authentication token format.")
+                .requestId(getRequestId(request))
+                .path(request.getRequestURI())
+                .error(Map.of("error", "Unsupported JWT token", "details", ex.getMessage()))
+                .build());
+    }
+
+    @ExceptionHandler(JwtAuthenticationException.class)
+    public ResponseEntity<ApiErrorResponse> handleJwtAuthentication(JwtAuthenticationException ex, HttpServletRequest request) {
+        String message;
+        String errorType = ex.getErrorType().name();
+        
+        switch (ex.getErrorType()) {
+            case EXPIRED:
+                message = "Your session has expired. Please log in again.";
+                break;
+            case MALFORMED:
+                message = "Invalid authentication token format.";
+                break;
+            case UNSUPPORTED:
+                message = "Unsupported authentication token format.";
+                break;
+            case SIGNATURE_INVALID:
+                message = "Invalid authentication token signature.";
+                break;
+            case USER_NOT_FOUND:
+                message = "User account not found or has been removed.";
+                break;
+            case USER_DISABLED:
+                message = "User account is disabled.";
+                break;
+            case TOKEN_MISMATCH:
+                message = "Authentication token mismatch.";
+                break;
+            case INVALID_FORMAT:
+                message = "Invalid authentication token format.";
+                break;
+            default:
+                message = "Authentication failed. Please check your credentials and try again.";
+        }
+        
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiErrorResponse.builder()
+                .message(message)
+                .requestId(getRequestId(request))
+                .path(request.getRequestURI())
+                .error(Map.of("error", errorType, "details", ex.getMessage()))
+                .build());
+    }
+
+    @ExceptionHandler({AuthenticationException.class, BadCredentialsException.class})
+    public ResponseEntity<ApiErrorResponse> handleAuthentication(Exception ex, HttpServletRequest request) {
+        String message = "Authentication failed. Please check your credentials and try again.";
+        
+        // Provide more specific messages for common authentication failures
+        if (ex instanceof BadCredentialsException) {
+            if (ex.getMessage().contains("expired")) {
+                message = "Your session has expired. Please log in again.";
+            } else if (ex.getMessage().contains("signature")) {
+                message = "Invalid authentication token signature.";
+            } else if (ex.getMessage().contains("malformed")) {
+                message = "Invalid authentication token format.";
+            } else if (ex.getMessage().contains("User not found")) {
+                message = "User account not found or has been removed.";
+            }
+        }
+        
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiErrorResponse.builder()
+                .message(message)
                 .requestId(getRequestId(request))
                 .path(request.getRequestURI())
                 .error(Map.of("error", ex.getMessage()))
