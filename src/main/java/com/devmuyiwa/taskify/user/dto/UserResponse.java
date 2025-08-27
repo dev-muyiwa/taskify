@@ -8,6 +8,6 @@ public record UserResponse(
     String firstName,
     String lastName,
     String email,
-    Instant emailVerifiedAt,
+    Boolean isEmailVerified,
     Instant createdAt
 ) {}

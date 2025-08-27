@@ -1,10 +1,11 @@
 package com.devmuyiwa.taskify.user;
 
 import com.devmuyiwa.taskify.auth.dto.req.RegisterRequest;
+import com.devmuyiwa.taskify.auth.exception.AuthException;
 import com.devmuyiwa.taskify.user.domain.User;
 import com.devmuyiwa.taskify.user.dto.UserResponse;
-
 import io.micrometer.core.annotation.Timed;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,12 +21,14 @@ public class UserService {
 
     private final UserRepository userRepo;
     private final PasswordEncoder passwordEncoder;
+    private final MeterRegistry meterRegistry;
 
     @Transactional
     @Timed(value = "user.create", description = "Time taken to create a new user")
     public User createUser(RegisterRequest request) {
         if (userRepo.existsByEmail(request.email().toLowerCase())) {
-            throw new IllegalArgumentException("An account with this email already exists.");
+            meterRegistry.counter("user.create.failure", "reason", "email_exists").increment();
+            throw new AuthException("An account with this email already exists.");
         }
 
         User user = User.builder()
@@ -56,9 +59,11 @@ public class UserService {
     }
 
     public void updatePassword(User user, String newPassword) {
-        if (user == null || newPassword == null || newPassword.isBlank()) {
-            throw new IllegalArgumentException("User and new password cannot be null or blank.");
+        // Check if the new password is the same as the current password
+        if (passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new AuthException("New password cannot be the same as your current password.");
         }
+        
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepo.save(user);
     }
@@ -70,23 +75,27 @@ public class UserService {
         }
         
         // Make it idempotent - only update if not already verified
-        if (user.getEmailVerifiedAt() == null) {
-            user.setEmailVerifiedAt(Instant.now());
-            userRepo.save(user);
+        if (user.getEmailVerifiedAt() != null) {
+            return;
         }
-        // If already verified, do nothing (idempotent)
+
+        user.setEmailVerifiedAt(Instant.now());
+        userRepo.save(user);
     }
 
-    public UserResponse getCurrentUser(UUID userId) {
+    public UserResponse getCurrentUser(UUID userId, String requestId) {
         User user = findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> {
+                    meterRegistry.counter("user.fetch.failure", "reason", "not_found").increment();
+                    return new IllegalArgumentException("User not found");
+                });
         
         return new UserResponse(
             user.getId(),
             user.getFirstName(),
             user.getLastName(),
             user.getEmail(),
-            user.getEmailVerifiedAt(),
+                user.getEmailVerifiedAt() != null,
             user.getCreatedAt()
         );
     }

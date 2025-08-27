@@ -3,6 +3,7 @@ package com.devmuyiwa.taskify.auth;
 import com.devmuyiwa.taskify.auth.config.JwtUtil;
 import com.devmuyiwa.taskify.auth.dto.req.*;
 import com.devmuyiwa.taskify.auth.dto.res.AuthResponse;
+import com.devmuyiwa.taskify.auth.exception.AuthException;
 import com.devmuyiwa.taskify.common.events.PasswordResetTokenGeneratedEvent;
 import com.devmuyiwa.taskify.common.events.SuccessfulPasswordResetEvent;
 import com.devmuyiwa.taskify.common.events.UserRegisteredEvent;
@@ -83,92 +84,101 @@ public class AuthService {
                     new UsernamePasswordAuthenticationToken(email, req.password())
             );
 
-            log.debug("Authentication attempt successful for user: {}", auth);
-
             User user = userService.findByEmail(email)
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                    .orElseThrow(() -> new AuthException("User not found"));
 
             String token = jwtUtil.generateToken(user.getId());
-            log.info("User logged in successfully: {}", email);
 
             return new AuthResponse(token);
         } catch (BadCredentialsException | UsernameNotFoundException ex) {
-            meterRegistry.counter("auth.login.badCredentials").increment();
-            log.warn("Invalid credentials for email: {}", email);
-            throw new IllegalArgumentException("Invalid email or password.");
+            meterRegistry.counter("auth.login.failed").increment();
+            throw new AuthException("Invalid email or password.");
         } catch (Exception ex) {
-            meterRegistry.counter("auth.login.unexpectedError").increment();
-            log.error("Unexpected error during login for email: {}", email, ex);
-            throw new IllegalArgumentException("Something went wrong.");
+            meterRegistry.counter("auth.login.failed").increment();
+            throw new AuthException("Authentication failed. Please try again.");
         }
     }
 
+    @Transactional
     @Timed(value = "auth.forgotPassword", description = "Time taken to handle forgot password request")
     public void forgotPassword(ForgotPassword req, String requestId) {
 //        virtualThreadExecutor.execute(() -> {
-            Optional<User> user = userService.findByEmail(req.email());
-            if (user.isEmpty()) {
-                return;
-            }
+        Optional<User> user = userService.findByEmail(req.email());
+        if (user.isEmpty()) {
+            return;
+        }
 
-            User existingUser = user.get();
+        User existingUser = user.get();
 
 //        generate the reset token
-            String resetKey = buildResetKey(existingUser.getId());
-            Duration expiryDuration = Duration.ofMinutes(20);
-            String resetToken = jwtUtil.generateResetToken(existingUser.getId(), expiryDuration);
-            redisTemplate.opsForHash().put(resetKey, "token", resetToken);
-            redisTemplate.opsForHash().put(resetKey, "verified", "false");
-            redisTemplate.expire(resetKey, expiryDuration);
+        String resetKey = buildResetKey(existingUser.getId());
+        Duration expiryDuration = Duration.ofMinutes(20);
+        String resetToken = jwtUtil.generateResetToken(existingUser.getId(), expiryDuration);
+        String base64Token = Base64.getEncoder().encodeToString(resetToken.getBytes());
 
-            eventPublisher.publishEvent(new PasswordResetTokenGeneratedEvent("sf", existingUser.getEmail(), resetToken, expiryDuration, requestId));
+        redisTemplate.opsForHash().put(resetKey, "token", base64Token);
+        redisTemplate.opsForHash().put(resetKey, "verified", "false");
+        redisTemplate.expire(resetKey, expiryDuration);
+
+        eventPublisher.publishEvent(new PasswordResetTokenGeneratedEvent(existingUser.getFirstName(), existingUser.getEmail(), base64Token, expiryDuration, requestId));
 //        });
     }
 
     public void verifyResetToken(VerifyResetToken req) {
-        UUID userId = jwtUtil.extractUserId(req.resetToken());
+        try {
+            String resetToken = new String(Base64.getDecoder().decode(req.resetToken()));
+            UUID userId = jwtUtil.extractUserId(resetToken);
 
-        String key = buildResetKey(userId);
+            String key = buildResetKey(userId);
 
-        Object storedToken = redisTemplate.opsForHash().get(key, "token");
-        if (storedToken == null || !storedToken.toString().equals(req.resetToken())) {
-            throw new IllegalArgumentException("Invalid or expired reset token.");
+            Object storedToken = redisTemplate.opsForHash().get(key, "token");
+            if (storedToken == null || !storedToken.toString().equals(req.resetToken())) {
+                throw new AuthException("Invalid or expired reset token.");
+            }
+
+            redisTemplate.opsForHash().put(key, "verified", "true");
+        } catch (IllegalArgumentException e) {
+            throw new AuthException("Malformed reset token.");
         }
-
-        redisTemplate.opsForHash().put(key, "verified", "true");
     }
 
+    @Transactional
     public void resetPassword(ResetPassword req, String requestId) {
-        UUID userId = jwtUtil.extractUserId(req.resetToken());
+        try {
+            String resetToken = new String(Base64.getDecoder().decode(req.resetToken()));
+            UUID userId = jwtUtil.extractUserId(resetToken);
 
-        Optional<User> user = userService.findById(userId);
-        if (user.isEmpty()) {
-            throw new IllegalArgumentException("Invalid reset token.");
+            Optional<User> user = userService.findById(userId);
+            if (user.isEmpty()) {
+                throw new AuthException("Invalid reset token.");
+            }
+
+            String key = buildResetKey(user.get().getId());
+
+            Object tokenObj = redisTemplate.opsForHash().get(key, "token");
+            Object verifiedObj = redisTemplate.opsForHash().get(key, "verified");
+
+            if (tokenObj == null || !req.resetToken().equals(tokenObj.toString())) {
+                throw new AuthException("Invalid or expired reset token.");
+            }
+
+            if (verifiedObj == null || !"true".equals(verifiedObj.toString())) {
+                throw new AuthException("Reset token has not been verified.");
+            }
+
+            userService.updatePassword(user.get(), req.newPassword());
+
+            redisTemplate.delete(key);
+
+            eventPublisher.publishEvent(
+                    new SuccessfulPasswordResetEvent(
+                            requestId,
+                            user.get().getEmail()
+                    )
+            );
+        } catch (IllegalArgumentException e) {
+            throw new AuthException("Malformed reset token.");
         }
-
-        String key = buildResetKey(user.get().getId());
-
-        Object tokenObj = redisTemplate.opsForHash().get(key, "token");
-        Object verifiedObj = redisTemplate.opsForHash().get(key, "verified");
-
-        if (tokenObj == null || !req.resetToken().equals(tokenObj.toString())) {
-            throw new IllegalArgumentException("Invalid or expired reset token.");
-        }
-
-        if (verifiedObj == null || !"true".equals(verifiedObj.toString())) {
-            throw new IllegalStateException("Reset token has not been verified.");
-        }
-
-        userService.updatePassword(user.get(), req.newPassword());
-
-        redisTemplate.delete(key);
-
-        eventPublisher.publishEvent(
-                new SuccessfulPasswordResetEvent(
-                        requestId,
-                        user.get().getEmail()
-                )
-        );
     }
 
 //    public void sendEmailVerification(ResendEmailVerification req, String requestId) {

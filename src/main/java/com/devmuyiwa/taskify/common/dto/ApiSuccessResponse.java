@@ -7,25 +7,19 @@ import lombok.Builder;
 import lombok.Value;
 
 import java.time.Instant;
-import java.util.Map;
+import java.util.List;
 
 @Value
 @Builder
-@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonInclude(JsonInclude.Include.ALWAYS)
 @Schema(
         name = "ApiSuccessResponse",
-        description = "Enterprise-grade response format for successful API requests")
+        description = "Simplified response format for successful API requests")
 public class ApiSuccessResponse<T> {
     
     @Builder.Default
     @Schema(description = "Indicates whether the request was successful", example = "true")
     boolean success = true;
-    
-    @Schema(description = "HTTP status code", example = "200")
-    Integer status;
-    
-    @Schema(description = "HTTP status text", example = "OK")
-    String statusText;
     
     @Schema(description = "Message describing the result of the request", example = "Operation completed successfully.")
     String message;
@@ -34,13 +28,8 @@ public class ApiSuccessResponse<T> {
     T data;
     
     @Schema(description = "Pagination information for list responses")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     PaginationInfo pagination;
-    
-    @Schema(description = "Additional metadata about the response")
-    Map<String, Object> metadata;
-    
-    @Schema(description = "Unique identifier for the request, useful for tracing and debugging", example = "req-123e4567-e89b-12d3-a456-426614174000")
-    String requestId;
     
     @Schema(description = "Timestamp of when the response was generated", example = "2023-10-01T12:34:56.789Z")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
@@ -52,16 +41,9 @@ public class ApiSuccessResponse<T> {
     @Schema(description = "HTTP method of the request", example = "GET")
     String method;
     
-    @Schema(description = "Application version", example = "1.0.0")
-    String version;
-    
-    @Schema(description = "Instance ID of the service", example = "taskify-api-01")
-    String instanceId;
-    
-    @Schema(description = "Processing time in milliseconds", example = "45")
-    Long processingTimeMs;
-    
-    
+    @Schema(description = "List of field-specific validation errors")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    List<FieldError> fieldErrors;
     
     @Value
     @Builder
@@ -87,48 +69,22 @@ public class ApiSuccessResponse<T> {
         
         @Schema(description = "Number of items on current page", example = "20")
         Integer numberOfElements;
-        
-        @Schema(description = "Sort information")
-        SortInfo sort;
-        
-        @Schema(description = "Navigation links")
-        NavigationLinks navigation;
     }
     
     @Value
     @Builder
-    @Schema(description = "Sort information for paginated responses")
-    public static class SortInfo {
-        @Schema(description = "Whether the response is sorted", example = "true")
-        Boolean sorted;
+    @Schema(description = "Field-specific validation error")
+    public static class FieldError {
+        @Schema(description = "Name of the field that failed validation", example = "email")
+        String field;
         
-        @Schema(description = "Whether the response is unsorted", example = "false")
-        Boolean unsorted;
+        @Schema(description = "Value that failed validation", example = "invalid-email")
+        Object rejectedValue;
         
-        @Schema(description = "Sort direction", example = "ASC")
-        String direction;
+        @Schema(description = "Error message for the field", example = "must be a valid email address")
+        String message;
         
-        @Schema(description = "Sort property", example = "createdAt")
-        String property;
-    }
-    
-    @Value
-    @Builder
-    @Schema(description = "Navigation links for pagination")
-    public static class NavigationLinks {
-        @Schema(description = "Link to first page")
-        String first;
-        
-        @Schema(description = "Link to previous page")
-        String prev;
-        
-        @Schema(description = "Link to self (current page)")
-        String self;
-        
-        @Schema(description = "Link to next page")
-        String next;
-        
-        @Schema(description = "Link to last page")
-        String last;
+        @Schema(description = "Error code for the field", example = "EMAIL_FORMAT")
+        String code;
     }
 }

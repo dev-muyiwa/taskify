@@ -54,14 +54,10 @@ public class MailService {
     public void handlePasswordResetTokenGenerated(PasswordResetTokenGeneratedEvent event) {
         try {
             String to = event.email();
-            String subject = "Password Reset Request";
-            String body = String.format(
-                    "You requested a password reset. Use this token: %s\n\nThis token expires in %d minutes.\n\nIf you didn't request this, please ignore this email.",
-                    event.token(),
-                    event.expirationTime().toMinutes()
-            );
+            String subject = "Password Reset Request - Taskify";
 
-            sendEmailAsync(to, subject, body, false);
+            // Use Thymeleaf template for HTML email
+            sendPasswordResetEmailAsync(to, subject, event.firstName(), event.token(), event.expirationTime().toMinutes());
         } catch (Exception e) {
             log.error("Failed to send password reset email:", e);
         }
@@ -110,6 +106,22 @@ public class MailService {
         context.setVariable("expirationMinutes", expirationMinutes);
 
         String htmlContent = templateEngine.process("email/account_verification", context);
+
+        // Use the unified email sending function
+        sendEmailAsync(to, subject, htmlContent, true);
+    }
+
+    private void sendPasswordResetEmailAsync(String to, String subject, String firstName, String resetToken, long expirationMinutes) {
+        // Compose the full reset URL with token as query parameter
+        String fullResetUrl = frontendUrl + "/reset-password?token=" + resetToken;
+
+        // Use Thymeleaf template for password reset email
+        Context context = new Context();
+        context.setVariable("firstName", firstName);
+        context.setVariable("resetUrl", fullResetUrl);
+        context.setVariable("expirationMinutes", expirationMinutes);
+
+        String htmlContent = templateEngine.process("email/password-reset", context);
 
         // Use the unified email sending function
         sendEmailAsync(to, subject, htmlContent, true);

@@ -1,5 +1,6 @@
 package com.devmuyiwa.taskify.auth.config;
 
+import com.devmuyiwa.taskify.auth.util.AuthUser;
 import com.devmuyiwa.taskify.auth.exception.JwtAuthenticationException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -18,8 +19,10 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import java.io.IOException;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -27,7 +30,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
+    private final HandlerExceptionResolver handlerExceptionResolver;
 
     @Override
     protected void doFilterInternal(
@@ -45,58 +48,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             final String jwt = authHeader.substring(7);
-            
-            // Additional validation for JWT format
+
             if (!StringUtils.hasText(jwt)) {
-                log.debug("Empty JWT token provided");
                 filterChain.doFilter(request, response);
                 return;
             }
-            
-            // Validate JWT format and extract user info
-            final String userEmail = jwtService.extractUsername(jwt);
-            
-            if (userEmail == null) {
-                log.warn("Failed to extract username from JWT token");
+
+            if (!jwtService.isTokenValid(jwt)) {
                 filterChain.doFilter(request, response);
                 return;
             }
+
+            final UUID userId = jwtService.extractUserId(jwt);
 
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
             if (authentication == null) {
-                try {
-                    UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+                AuthUser authUser = new AuthUser(userId);
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                        authUser,
+                        null,
+                        null
+                );
 
-                    if (jwtService.isTokenValid(jwt, userDetails)) {
-                        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities()
-                        );
-
-                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                        SecurityContextHolder.getContext().setAuthentication(authToken);
-                        log.debug("JWT authentication successful for user: {}", userEmail);
-                    } else {
-                        log.warn("JWT token validation failed for user: {}", userEmail);
-                    }
-                } catch (UsernameNotFoundException e) {
-                    log.warn("User not found during JWT authentication: {}", userEmail);
-                    // Don't throw exception here, just continue without authentication
-                } catch (JwtAuthenticationException e) {
-                    log.warn("JWT authentication exception for user {}: {}", userEmail, e.getMessage());
-                    // Don't throw exception here, just continue without authentication
-                }
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
             }
-        } catch (JwtAuthenticationException e) {
-            log.warn("JWT authentication failed: {}", e.getMessage());
-            // Don't throw exception here, just continue without authentication
-            // The GlobalExceptionHandler will handle any authentication failures
         } catch (Exception e) {
             log.error("Unexpected error processing JWT token: {}", e.getMessage());
-            // Don't throw exception here, just continue without authentication
-            // The GlobalExceptionHandler will handle any authentication failures
+            handlerExceptionResolver.resolveException(request, response, null, e);
+            return;
         }
 
         filterChain.doFilter(request, response);

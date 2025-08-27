@@ -15,8 +15,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JwtService {
     
-    private final JwtUtil jwtUtil;
-    private final UserRepository userRepository;
+    final JwtUtil jwtUtil;
+    final UserRepository userRepository;
     
     public String extractUsername(String token) {
         try {
@@ -43,36 +43,26 @@ public class JwtService {
             throw new JwtAuthenticationException("Invalid JWT token format", JwtAuthenticationException.JwtErrorType.INVALID_FORMAT, e);
         }
     }
-    
+
+    // New: validate token only (signature/expiration), no DB lookups
+    public boolean isTokenValid(String token) {
+        try {
+            return jwtUtil.isValid(token);
+        } catch (Exception e) {
+            log.warn("Token validation failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    // Kept for backward compatibility where needed elsewhere
     public boolean isTokenValid(String token, UserDetails userDetails) {
         try {
-            // First validate the JWT structure and signature
             if (!jwtUtil.isValid(token)) {
                 log.warn("JWT token structure validation failed");
                 return false;
             }
-            
-            // Extract user ID and validate user exists
-            UUID userId = jwtUtil.extractUserId(token);
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new JwtAuthenticationException("User not found for token", JwtAuthenticationException.JwtErrorType.USER_NOT_FOUND));
-            
-            // Validate username matches
-            if (!user.getEmail().equals(userDetails.getUsername())) {
-                log.warn("Token username mismatch: expected {}, got {}", userDetails.getUsername(), user.getEmail());
-                return false;
-            }
-            
-            // Additional validation can be added here (e.g., user status, account locked, etc.)
-            if (user.getDeletedAt() != null) {
-                log.warn("User account is deleted: {}", user.getEmail());
-                return false;
-            }
-            
+            // DB checks are intentionally avoided during filter auth flow.
             return true;
-        } catch (JwtAuthenticationException e) {
-            // Re-throw JWT authentication exceptions
-            throw e;
         } catch (Exception e) {
             log.error("JWT validation failed: {}", e.getMessage());
             return false;

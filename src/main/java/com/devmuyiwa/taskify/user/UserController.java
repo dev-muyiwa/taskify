@@ -1,6 +1,7 @@
 package com.devmuyiwa.taskify.user;
 
 import com.devmuyiwa.taskify.auth.util.AuthUser;
+import com.devmuyiwa.taskify.common.dto.ApiResponseBuilder;
 import com.devmuyiwa.taskify.common.dto.ApiSuccessResponse;
 import com.devmuyiwa.taskify.common.filter.RequestIdFilter;
 import com.devmuyiwa.taskify.user.dto.UserResponse;
@@ -21,10 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/users")
 @RequiredArgsConstructor
 @Tag(name = "User Management", description = "Endpoints for user management")
-@SecurityRequirement(name = "Bearer Authentication")
+@SecurityRequirement(name = "BearerAuth")
 public class UserController {
 
     private final UserService userService;
+    private final ApiResponseBuilder responseBuilder;
 
     @GetMapping("/me")
     @Operation(
@@ -42,12 +44,8 @@ public class UserController {
             HttpServletRequest httpRequest) {
 
         String requestId = (String) httpRequest.getAttribute(RequestIdFilter.REQUEST_ID_HEADER);
-        UserResponse userResponse = userService.getCurrentUser(authUser.id());
+        UserResponse userResponse = userService.getCurrentUser(authUser.id(), requestId);
         
-        return ApiSuccessResponse.<UserResponse>builder()
-                .message("User information retrieved successfully")
-                .data(userResponse)
-                .requestId(requestId)
-                .build();
+        return responseBuilder.success(userResponse, "User information retrieved successfully.");
     }
 }
