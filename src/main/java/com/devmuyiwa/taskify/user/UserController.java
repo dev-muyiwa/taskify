@@ -8,7 +8,6 @@ import com.devmuyiwa.taskify.user.dto.UserResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,11 +32,11 @@ public class UserController {
             summary = "Get current user information",
             description = "Retrieves information about the currently authenticated user"
     )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "User information retrieved successfully"),
-            @ApiResponse(responseCode = "401", description = "Unauthorized - Invalid or missing authentication token"),
-            @ApiResponse(responseCode = "404", description = "User not found")
-    })
+    @ApiResponse(
+            responseCode = "200",
+            description = "Successfully retrieved user information",
+            useReturnTypeSchema = true
+    )
     public ApiSuccessResponse<UserResponse> getCurrentUser(
             @Parameter(description = "Current user extracted from JWT token")
             @AuthenticationPrincipal AuthUser authUser,

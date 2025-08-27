@@ -120,10 +120,6 @@ public class AuthController {
             HttpServletRequest httpRequest) {
         String requestId = (String) httpRequest.getAttribute(RequestIdFilter.REQUEST_ID_HEADER);
 
-        if (authUser == null) {
-            throw new UnsupportedOperationException("User not authenticated");
-        }
-
         authService.resendVerificationEmail(requestId, authUser.id());
         return responseBuilder.success("Email resend successfully.");
     }

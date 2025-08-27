@@ -50,7 +50,6 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(user.getId());
 
-        // Send verification email
         sendVerificationEmail(user, requestId);
 
         return new AuthResponse(token);
@@ -102,7 +101,6 @@ public class AuthService {
     @Transactional
     @Timed(value = "auth.forgotPassword", description = "Time taken to handle forgot password request")
     public void forgotPassword(ForgotPassword req, String requestId) {
-//        virtualThreadExecutor.execute(() -> {
         Optional<User> user = userService.findByEmail(req.email());
         if (user.isEmpty()) {
             return;
@@ -121,7 +119,6 @@ public class AuthService {
         redisTemplate.expire(resetKey, expiryDuration);
 
         eventPublisher.publishEvent(new PasswordResetTokenGeneratedEvent(existingUser.getFirstName(), existingUser.getEmail(), base64Token, expiryDuration, requestId));
-//        });
     }
 
     public void verifyResetToken(VerifyResetToken req) {
@@ -181,15 +178,6 @@ public class AuthService {
         }
     }
 
-//    public void sendEmailVerification(ResendEmailVerification req, String requestId) {
-//        Optional<User> userOpt = userService.findByEmail(req.email());
-//        if (userOpt.isEmpty()) {
-//            throw new IllegalArgumentException("No account found with that email.");
-//        }
-//
-//        User user = userOpt.get();
-//    }
-
     private String buildResetKey(UUID userId) {
         return "password-reset:" + userId.toString();
     }
@@ -197,33 +185,25 @@ public class AuthService {
     @Timed(value = "auth.verifyEmail", description = "Time taken to verify user's email")
     public void verifyEmail(VerifyEmailRequest req, String requestId) {
         try {
-            // Decode the base64 token
             String decodedToken = new String(Base64.getDecoder().decode(req.token()));
 
-            // Extract user ID from the JWT
             UUID userId = jwtUtil.extractUserId(decodedToken);
 
-            // Verify the token is still valid
             if (!jwtUtil.isValid(decodedToken)) {
                 throw new IllegalArgumentException("Invalid or expired verification token.");
             }
 
-            // Find the user
             Optional<User> userOpt = userService.findById(userId);
             if (userOpt.isEmpty()) {
                 throw new IllegalArgumentException("Invalid verification token.");
             }
 
             User user = userOpt.get();
-
-            // Mark the user's email as verified
             userService.markEmailAsVerified(user);
-            log.info("Email verified successfully for user: {}", userId);
 
         } catch (IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Unexpected error during email verification for token: {}", req.token(), e);
             throw new IllegalArgumentException("Invalid verification token.");
         }
     }
@@ -245,16 +225,13 @@ public class AuthService {
 
         // Send verification email
         sendVerificationEmail(user, requestId);
-        log.info("Verification email resent for user: {}", user.getId());
     }
 
     private void sendVerificationEmail(User user, String requestId) {
-        // Generate email verification token with 20 minutes expiration
         int expirationMinutes = 20;
         String verificationToken = jwtUtil.generateEmailVerificationToken(user.getId(), expirationMinutes);
         String base64Token = Base64.getEncoder().encodeToString(verificationToken.getBytes());
 
-        // Publish event to send verification email
         publishUserRegisteredEventAsync(
                 user,
                 base64Token,
