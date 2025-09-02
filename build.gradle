@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.5.3'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.liquibase.gradle' version '2.2.2'
 }
 
 group = 'com.dev-muyiwa'
@@ -13,14 +14,9 @@ java {
     }
 }
 
-configurations {
-    compileOnly {
-        extendsFrom annotationProcessor
-    }
-}
-
 repositories {
     mavenCentral()
+    maven { url "https://repository.jboss.org/nexus/content/groups/public/" }
 }
 
 ext {
@@ -41,24 +37,76 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-cache'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9'
 
-
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     implementation 'com.resend:resend-java:3.1.0'
+
     compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
     runtimeOnly 'org.postgresql:postgresql'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
-    annotationProcessor 'org.projectlombok:lombok'
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.modulith:spring-modulith-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Liquibase dependencies
+    liquibaseRuntime 'org.liquibase:liquibase-core:4.33.0'
+    liquibaseRuntime("org.liquibase.ext:liquibase-hibernate6:4.33.0") {
+        exclude group: 'org.hibernate.orm'
+    }
+    liquibaseRuntime 'org.postgresql:postgresql'
+    liquibaseRuntime 'ch.qos.logback:logback-classic:1.5.13'
+    liquibaseRuntime 'info.picocli:picocli:4.7.7'
+
+
+    // Spring deps required for Hibernate+Liquibase
+    liquibaseRuntime 'org.springframework:spring-core:6.1.14'
+    liquibaseRuntime 'org.springframework:spring-orm:6.1.12'
+    liquibaseRuntime 'org.springframework:spring-context:6.1.14'
+    liquibaseRuntime 'org.springframework:spring-beans:6.2.10'
+    liquibaseRuntime 'org.springframework:spring-aop:6.1.14'
+    liquibaseRuntime 'org.springframework:spring-expression:6.1.14'
+    liquibaseRuntime 'org.springframework:spring-jcl:6.1.14'
+
+    // Hibernate deps
+    liquibaseRuntime 'org.hibernate.orm:hibernate-core:6.4.8.Final'
+    liquibaseRuntime "org.hibernate.orm:hibernate-envers:6.6.18.Final"
+    liquibaseRuntime 'org.hibernate.common:hibernate-commons-annotations:7.0.2.Final'
+
+    // Jakarta APIs
+    liquibaseRuntime 'jakarta.persistence:jakarta.persistence-api:3.1.0'
+    liquibaseRuntime 'jakarta.transaction:jakarta.transaction-api:2.0.1'
+    liquibaseRuntime 'jakarta.xml.bind:jakarta.xml.bind-api:4.0.1'
+
+    // Include compiled entities in Liquibase classpath
+    liquibaseRuntime sourceSets.main.output
 }
+
 
 dependencyManagement {
     imports {
         mavenBom "org.springframework.modulith:spring-modulith-bom:${springModulithVersion}"
     }
+}
+
+// Liquibase configuration
+liquibase {
+    activities {
+        main {
+            changelogFile 'src/main/resources/db/changelog/db.changelog-master.xml'
+            url project.findProperty('spring.datasource.url')
+            username project.findProperty('spring.datasource.username')
+            password project.findProperty('spring.datasource.password')
+            driver project.findProperty('spring.datasource.driver-class-name')
+
+            // For diff generation against your entities
+            referenceUrl 'hibernate:spring:com.yourpackage.entity?dialect=org.hibernate.dialect.PostgreSQLDialect'
+        }
+    }
+    runList = 'main'
 }
 
 tasks.named('test') {

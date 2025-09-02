@@ -64,3 +64,9 @@ resend.from="Taskify <welcome@taskify.com>"
 logging.level.com.devmuyiwa.taskify=INFO
 logging.level.org.hibernate.SQL=WARN
 logging.level.org.hibernate.type.descriptor.sql.BasicBinder=WARN
+
+# Liquibase Configuration
+spring.liquibase.enabled=true
+spring.liquibase.change-log=classpath:db/changelog/db-changelog-master.xml
+spring.liquibase.contexts=dev
+spring.liquibase.default-schema=public
