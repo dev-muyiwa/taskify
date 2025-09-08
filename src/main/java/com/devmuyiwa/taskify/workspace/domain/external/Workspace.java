@@ -17,7 +17,6 @@ import java.util.UUID;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
-@RequiredArgsConstructor
 @Builder
 public class Workspace {
 

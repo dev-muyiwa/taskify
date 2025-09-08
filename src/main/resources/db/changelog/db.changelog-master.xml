@@ -7,7 +7,5 @@
     <changeSet id="0" author="admin">
 
     </changeSet>
-    <includeAll path="db/changelog/2025/08"/>
-    <include file="db/changelog/2025/08/31-02-changelog.sql"/>
     <include file="db/changelog/2025/09/02-01-changelog.sql"/>
 </databaseChangeLog>

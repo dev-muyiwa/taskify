@@ -20,7 +20,6 @@ import java.util.UUID;
 @Getter
 @Setter
 @ToString
-@RequiredArgsConstructor
 @Builder
 public class WorkspaceMemberInvite {
 
